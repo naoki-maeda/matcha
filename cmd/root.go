@@ -11,21 +11,24 @@ import (
 	"github.com/spf13/viper"
 )
 
-
 var (
-	cfgFile string
-	host string
-	port string
-	user string
-	password string
+	cfgFile        string
+	host           string
+	port           string
+	user           string
+	password       string
+	network        string
+	size           int
+	walletPassword string
+	addressType    string
 )
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "matcha",
 	Short: "bitcoin developer tool",
-	Long: `bitcoin developer tool`,
-	RunE: run,
+	Long:  `bitcoin developer tool`,
+	RunE:  run,
 }
 
 func run(cmd *cobra.Command, args []string) error {
@@ -33,12 +36,52 @@ func run(cmd *cobra.Command, args []string) error {
 	port = viper.GetString("port")
 	user = viper.GetString("user")
 	password = viper.GetString("password")
+	network = viper.GetString("network")
+	size = viper.GetInt("size")
+	walletPassword = viper.GetString("wallet-password")
+	addressType = viper.GetString("address-type")
+
 	rpc, err := blockchain.NewRPC(host, port, user, password, true)
 	if err != nil {
 		return err
 	}
-	fmt.Println(rpc)
-	fmt.Println(rpc.Client.GetBlockChainInfo())
+	blockInfo, err := rpc.Client.GetBlockChainInfo()
+	if err != nil {
+		return err
+	}
+	fmt.Println(blockInfo)
+
+	hdwallet, err := blockchain.NewHDWallet(size, network, walletPassword)
+	if err != nil {
+		return err
+	}
+	coinType := blockchain.GetCoinType(network)
+	account, err := hdwallet.NewAccount(blockchain.Purpose, blockchain.CoinTypeBitcoinTestnet, coinType)
+	if err != nil {
+		return err
+	}
+	fmt.Println(`Available Accounts
+==================`)
+	var privKeys [10]string
+	for i := uint32(0); i < 10; i++ {
+		childWallet, err := account.DeriveAddress(blockchain.ChangeTypeExternal, i, addressType)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("(%d) %s\n", i, childWallet.Address)
+		privKeys[i] = childWallet.PrivKey
+	}
+	fmt.Println(`Private Keys
+==================`)
+	for n, privKey := range privKeys {
+		fmt.Printf("(%d) %s\n", n, privKey)
+	}
+
+	fmt.Printf(
+		`HD Wallet
+==================
+Mnemonic:      %s
+Base HD Path:  m/44'/60'/0'/0/{account_index}`, hdwallet.Mnemonic)
 	return nil
 }
 
@@ -59,12 +102,20 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&port, "port", "18443", "bitcoind port (default is regtest port)")
 	rootCmd.PersistentFlags().StringVar(&user, "user", "admin", "bitcoind user name (default is admin)")
 	rootCmd.PersistentFlags().StringVar(&password, "password", "password", "bitcoind password (default is password)")
+	rootCmd.PersistentFlags().StringVar(&network, "network", "regtest", "bitcoind network (default is regtest)")
+	rootCmd.PersistentFlags().IntVar(&size, "size", 128, "bitSize must be [128, 256] and a multiple of 32 (default is 128)")
+	rootCmd.PersistentFlags().StringVar(&walletPassword, "wallet-password", "", "bitcoind HDWallet password (default is nothing)")
+	rootCmd.PersistentFlags().StringVar(&addressType, "address-type", "bech32", "bitcoin address type bech32 or p2kh or p2sh (default is bech32)")
 
 	// Priority is cli default value < config file < cli args
 	viper.BindPFlag("host", rootCmd.PersistentFlags().Lookup("host"))
 	viper.BindPFlag("port", rootCmd.PersistentFlags().Lookup("port"))
 	viper.BindPFlag("user", rootCmd.PersistentFlags().Lookup("user"))
 	viper.BindPFlag("password", rootCmd.PersistentFlags().Lookup("password"))
+	viper.BindPFlag("network", rootCmd.PersistentFlags().Lookup("network"))
+	viper.BindPFlag("size", rootCmd.PersistentFlags().Lookup("size"))
+	viper.BindPFlag("wallet-password", rootCmd.PersistentFlags().Lookup("wallet-password"))
+	viper.BindPFlag("address-type", rootCmd.PersistentFlags().Lookup("address-type"))
 }
 
 // initConfig reads in config file if set.

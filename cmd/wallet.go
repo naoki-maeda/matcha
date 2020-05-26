@@ -7,15 +7,15 @@ import (
 )
 
 var (
-    bitSize int
+	bitSize int
 )
 
 // walletCmd represents the wallet command
 var walletCmd = &cobra.Command{
 	Use:   "wallet",
 	Short: "Wallet Management command",
-	Long: `Wallet Management command`,
-	RunE: walletRun,
+	Long:  `Wallet Management command`,
+	RunE:  walletRun,
 }
 
 func walletRun(cmd *cobra.Command, args []string) error {

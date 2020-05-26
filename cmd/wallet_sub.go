@@ -3,16 +3,16 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/spf13/cobra"
 	"github.com/naoki-maeda/matcha/blockchain"
+	"github.com/spf13/cobra"
 )
 
 // mnemonicCmd generate mnemonic by bitSize
 var mnemonicCmd = &cobra.Command{
 	Use:   "mnemonic",
 	Short: "generate mnemonic",
-	Long: `generate mnemonic by bitSize`,
-	RunE: generateMnemonic,
+	Long:  `generate mnemonic by bitSize`,
+	RunE:  generateMnemonic,
 }
 
 func generateMnemonic(cmd *cobra.Command, args []string) error {
