@@ -21,6 +21,7 @@ var (
 	size           int
 	walletPassword string
 	addressType    string
+	mnemonic string
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -40,6 +41,7 @@ func run(cmd *cobra.Command, args []string) error {
 	size = viper.GetInt("size")
 	walletPassword = viper.GetString("wallet-password")
 	addressType = viper.GetString("address-type")
+	mnemonic = viper.GetString("mnemonic")
 
 	rpc, err := blockchain.NewRPC(host, port, user, password, true)
 	if err != nil {
@@ -51,10 +53,13 @@ func run(cmd *cobra.Command, args []string) error {
 	}
 	fmt.Println(blockInfo)
 
-	hdwallet, err := blockchain.NewHDWallet(size, network, walletPassword)
+	hdwallet, err := blockchain.NewHDWallet(size, mnemonic, network, walletPassword)
 	if err != nil {
 		return err
 	}
+	// write config file
+	viper.Set("mnemonic", hdwallet.Mnemonic)
+
 	coinType := blockchain.GetCoinType(network)
 	account, err := hdwallet.NewAccount(blockchain.Purpose, blockchain.CoinTypeBitcoinTestnet, coinType)
 	if err != nil {
@@ -92,6 +97,11 @@ func Execute() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+	// write config
+	if err := viper.SafeWriteConfig(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 }
 
 func init() {
@@ -106,6 +116,7 @@ func init() {
 	rootCmd.PersistentFlags().IntVar(&size, "size", 128, "bitSize must be [128, 256] and a multiple of 32 (default is 128)")
 	rootCmd.PersistentFlags().StringVar(&walletPassword, "wallet-password", "", "bitcoind HDWallet password (default is nothing)")
 	rootCmd.PersistentFlags().StringVar(&addressType, "address-type", "bech32", "bitcoin address type bech32 or p2kh or p2sh (default is bech32)")
+	rootCmd.PersistentFlags().StringVar(&mnemonic, "mnemonic", "", "HDWallet mnemonic")
 
 	// Priority is cli default value < config file < cli args
 	viper.BindPFlag("host", rootCmd.PersistentFlags().Lookup("host"))
@@ -116,6 +127,7 @@ func init() {
 	viper.BindPFlag("size", rootCmd.PersistentFlags().Lookup("size"))
 	viper.BindPFlag("wallet-password", rootCmd.PersistentFlags().Lookup("wallet-password"))
 	viper.BindPFlag("address-type", rootCmd.PersistentFlags().Lookup("address-type"))
+	viper.BindPFlag("mnemonic", rootCmd.PersistentFlags().Lookup("mnemonic"))
 }
 
 // initConfig reads in config file if set.

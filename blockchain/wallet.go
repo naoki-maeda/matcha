@@ -90,12 +90,14 @@ func GetParamsFromNetwork(network string) (*chaincfg.Params, error) {
 }
 
 // NewHDWallet return mnemonic and HDWallet ExtendedKey and network Params
-func NewHDWallet(bitSize int, network string, password string) (*HDWallet, error) {
-	mnemonic, err := GenerateMnemonic(bitSize)
-	if err != nil {
-		return nil, err
+func NewHDWallet(bitSize int, mnemonic string, network string, password string) (*HDWallet, error) {
+	if mnemonic == "" {
+		m, err := GenerateMnemonic(bitSize)
+		if err != nil {
+			return nil, err
+		}
+		mnemonic = m
 	}
-
 	seed, err := GenerateSeed(mnemonic, password)
 	if err != nil {
 		return nil, err
