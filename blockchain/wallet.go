@@ -192,36 +192,38 @@ func (a *Account) DeriveAddress(change, addressIndex uint32, addressType string)
 }
 
 // encodeAddress returns address and pubkey
-func encodeAddress(ecPubkey btcec.PublicKey, addressType string, networkParams chaincfg.Params) (string, string, error) {
-	var address, pubkey string
+func encodeAddress(ecPubkey btcec.PublicKey, addressType string, networkParams chaincfg.Params) (pubkey, address string, err error) {
 	switch addressType {
 	case AddressBech32:
 		witnessHash := btcutil.Hash160(ecPubkey.SerializeCompressed())
 		witnessPubKeyHash, err := btcutil.NewAddressWitnessPubKeyHash(witnessHash, &networkParams)
 		if err != nil {
-			return address, pubkey, err
+			return pubkey, address, err
 		}
 		pubkey = witnessPubKeyHash.String()
 		address = witnessPubKeyHash.EncodeAddress()
+		return pubkey, address, err
 	case AddressP2KH:
 		addressPubkey, err := btcutil.NewAddressPubKey(ecPubkey.SerializeCompressed(), &networkParams)
 		if err != nil {
-			return address, pubkey, err
+			return pubkey, address, err
 		}
 		pubkey = addressPubkey.String()
 		address = addressPubkey.EncodeAddress()
+		return pubkey, address, err
 	case AddressP2SH:
 		keyHash := btcutil.Hash160(ecPubkey.SerializeCompressed())
 		scriptSig, err := txscript.NewScriptBuilder().AddOp(txscript.OP_0).AddData(keyHash).Script()
 		if err != nil {
-			return address, pubkey, err
+			return pubkey, address, err
 		}
 		addressScript, err := btcutil.NewAddressScriptHash(scriptSig, &networkParams)
 		if err != nil {
-			return address, pubkey, err
+			return pubkey, address, err
 		}
 		pubkey = addressScript.String()
 		address = addressScript.EncodeAddress()
+		return pubkey, address, err
 	}
-	return address, pubkey, nil
+	return pubkey, address, errors.New("invalid address type")
 }
