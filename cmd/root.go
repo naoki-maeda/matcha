@@ -21,7 +21,7 @@ var (
 	size           int
 	walletPassword string
 	addressType    string
-	mnemonic string
+	mnemonic       string
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -97,8 +97,8 @@ func Execute() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	// write config
-	if err := viper.SafeWriteConfig(); err != nil {
+	// write config file
+	if err := viper.WriteConfig(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
@@ -147,6 +147,7 @@ func initConfig() {
 		// Search config in home directory with name ".matcha" (without extension).
 		viper.AddConfigPath(home)
 		viper.SetConfigName(".matcha")
+		viper.SetConfigType("yaml")
 	}
 
 	// If a config file is found, read it in.
