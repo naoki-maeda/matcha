@@ -18,10 +18,11 @@ var (
 	user           string
 	password       string
 	network        string
-	size           int
 	walletPassword string
 	addressType    string
 	mnemonic       string
+	zmqAddress string
+	size           int
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -42,6 +43,7 @@ func run(cmd *cobra.Command, args []string) error {
 	walletPassword = viper.GetString("wallet-password")
 	addressType = viper.GetString("address-type")
 	mnemonic = viper.GetString("mnemonic")
+	zmqAddress = viper.GetString("zmq-address")
 	size = viper.GetInt("size")
 
 	rpc, err := blockchain.NewRPC(host, port, user, password, true)
@@ -89,6 +91,15 @@ func run(cmd *cobra.Command, args []string) error {
 Mnemonic:      %s
 Base HD Path:  m/44'/60'/0'/0/{account_index}
 `, hdwallet.Mnemonic)
+
+	zmq, err := blockchain.NewZmqClient(zmqAddress)
+	if err != nil {
+		return err
+	}
+	if err := zmq.Sync(); err != nil {
+		fmt.Println(err)
+		return err
+	}
 	return nil
 }
 
@@ -118,6 +129,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&walletPassword, "wallet-password", "", "bitcoind HDWallet password (default is nothing)")
 	rootCmd.PersistentFlags().StringVar(&addressType, "address-type", "bech32", "bitcoin address type bech32 or p2kh or p2sh (default is bech32)")
 	rootCmd.PersistentFlags().StringVar(&mnemonic, "mnemonic", "", "HDWallet mnemonic")
+	rootCmd.PersistentFlags().StringVar(&zmqAddress, "zmq-address", "tcp://localhost:28332", "zero mq address (default is tcp://localhost:28332)")
 	rootCmd.PersistentFlags().IntVar(&size, "size", 128, "bitSize must be [128, 256] and a multiple of 32 (default is 128)")
 
 	viper.BindPFlag("host", rootCmd.PersistentFlags().Lookup("host"))
@@ -128,6 +140,7 @@ func init() {
 	viper.BindPFlag("wallet-password", rootCmd.PersistentFlags().Lookup("wallet-password"))
 	viper.BindPFlag("address-type", rootCmd.PersistentFlags().Lookup("address-type"))
 	viper.BindPFlag("mnemonic", rootCmd.PersistentFlags().Lookup("mnemonic"))
+	viper.BindPFlag("zmq-address", rootCmd.PersistentFlags().Lookup("zmq-address"))
 	viper.BindPFlag("size", rootCmd.PersistentFlags().Lookup("size"))
 }
 
