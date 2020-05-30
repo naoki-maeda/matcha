@@ -1,19 +1,23 @@
 package blockchain
 
 import (
-	"fmt"
 	"context"
+	"fmt"
+
+	"github.com/btcsuite/btcutil"
 	zmq "github.com/go-zeromq/zmq4"
 )
 
 const (
-	hash = "hash"
+	hash      = "hash"
 	hashBlock = "hashblock"
-	hashTx = "hashtx"
+	hashTx    = "hashtx"
+	rawBlock  = "rawblock"
+	rawTx     = "rawtx"
 )
 
-
 // ZMQ zero mq settings
+// https://github.com/bitcoin/bitcoin/blob/master/doc/zmq.md
 type ZMQ struct {
 	socket    zmq.Socket
 	isRunning bool
@@ -28,8 +32,19 @@ func NewZmqClient(zmqAddress string) (*ZMQ, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = socket.SetOption(zmq.OptionSubscribe, hash)
-	if err != nil {
+	if err := socket.SetOption(zmq.OptionSubscribe, hash); err != nil {
+		return nil, err
+	}
+	if err := socket.SetOption(zmq.OptionSubscribe, hashBlock); err != nil {
+		return nil, err
+	}
+	if err := socket.SetOption(zmq.OptionSubscribe, hashTx); err != nil {
+		return nil, err
+	}
+	if err := socket.SetOption(zmq.OptionSubscribe, rawBlock); err != nil {
+		return nil, err
+	}
+	if err := socket.SetOption(zmq.OptionSubscribe, rawTx); err != nil {
 		return nil, err
 	}
 	zmq := &ZMQ{socket, true, make(chan error)}
@@ -49,6 +64,26 @@ func (zmq *ZMQ) Sync() error {
 		if err != nil {
 			return err
 		}
-		fmt.Println(msg.String())
+		topic := fmt.Sprintf("%s", msg.Frames[0])
+		switch topic {
+		case rawBlock:
+			block, err := btcutil.NewBlockFromBytes(msg.Frames[1])
+			if err != nil {
+				fmt.Println(err)
+				return err
+			}
+			fmt.Println(`Generate Block
+==================`)
+			// height is -1 ?
+			fmt.Printf("height: %d hash: %s\n", block.Height(), block.Hash())
+		case rawTx:
+			tx, err := btcutil.NewTxFromBytes(msg.Frames[1])
+			if err != nil {
+				return err
+			}
+			fmt.Println(`Transaction
+==================`)
+			fmt.Printf("hash: %s\n", tx.Hash())
+		}
 	}
 }
