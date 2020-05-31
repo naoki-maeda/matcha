@@ -2,8 +2,11 @@ package cmd
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
+	"time"
 
+	"github.com/btcsuite/btcutil"
 	"github.com/naoki-maeda/matcha/blockchain"
 	"github.com/spf13/cobra"
 
@@ -23,6 +26,7 @@ var (
 	mnemonic       string
 	zmqAddress     string
 	bitSize        int
+	second         int
 	addressCount   uint32
 	verbose        bool
 )
@@ -47,6 +51,7 @@ func run(cmd *cobra.Command, args []string) error {
 	mnemonic = viper.GetString("mnemonic")
 	zmqAddress = viper.GetString("zmq-address")
 	bitSize = viper.GetInt("bit-size")
+	second = viper.GetInt("second")
 	addressCount = viper.GetUint32("address-count")
 	verbose = viper.GetBool("verbose")
 
@@ -69,6 +74,7 @@ func run(cmd *cobra.Command, args []string) error {
 	}
 	fmt.Println(`Available Accounts
 ==================`)
+	addresses := make([]btcutil.Address, addressCount, addressCount)
 	privKeys := make([]string, addressCount, addressCount)
 	for i := uint32(0); i < addressCount; i++ {
 		childWallet, err := account.DeriveAddress(blockchain.ChangeTypeExternal, i, addressType)
@@ -84,6 +90,7 @@ func run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 		fmt.Printf("(%d) %s\n", i, childWallet.Address)
+		addresses[i] = childWallet.Address
 		privKeys[i] = childWallet.WIF.String()
 	}
 	fmt.Println(`Private Keys
@@ -99,6 +106,18 @@ Mnemonic:      %s
 Base HD Path:  m/44'/60'/0'/0/{account_index}
 `, hdwallet.Mnemonic)
 
+	// generate block automatically by second
+	go func() {
+		t := time.NewTicker(time.Duration(second) * time.Second)
+		defer t.Stop()
+		for {
+			select {
+			case <-t.C:
+				// generate to random address
+				rpc.Client.GenerateToAddress(1, addresses[rand.Intn(int(addressCount))], &blockchain.MaxTries)
+			}
+		}
+	}()
 	// start syncing zmq
 	if zmqAddress != "" {
 		zmq, err := blockchain.NewZmqClient(zmqAddress, true)
@@ -106,12 +125,13 @@ Base HD Path:  m/44'/60'/0'/0/{account_index}
 			return err
 		}
 		if err := zmq.Sync(rpc.Client); err != nil {
-			fmt.Println(err)
 			return err
 		}
 	}
 	return nil
 }
+
+func sync()
 
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
@@ -130,19 +150,20 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.matcha.yaml)")
-	rootCmd.PersistentFlags().StringVar(&host, "host", "localhost", "bitcoind host name (default is localhost")
-	rootCmd.PersistentFlags().StringVar(&port, "port", "18443", "bitcoind port (default is regtest port)")
-	rootCmd.PersistentFlags().StringVar(&user, "user", "admin", "bitcoind user name (default is admin)")
-	rootCmd.PersistentFlags().StringVar(&password, "password", "password", "bitcoind password (default is password)")
-	rootCmd.PersistentFlags().StringVar(&network, "network", "regtest", "bitcoind network (default is regtest)")
-	rootCmd.PersistentFlags().StringVar(&walletPassword, "wallet-password", "", "bitcoind HDWallet password (default is nothing)")
-	rootCmd.PersistentFlags().StringVar(&addressType, "address-type", "bech32", "bitcoin address type bech32 or p2kh or p2sh (default is bech32)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file")
+	rootCmd.PersistentFlags().StringVar(&host, "host", "localhost", "bitcoind host name")
+	rootCmd.PersistentFlags().StringVar(&port, "port", "18443", "bitcoind port")
+	rootCmd.PersistentFlags().StringVar(&user, "user", "admin", "bitcoind user name")
+	rootCmd.PersistentFlags().StringVar(&password, "password", "password", "bitcoind password")
+	rootCmd.PersistentFlags().StringVar(&network, "network", "regtest", "bitcoind network")
+	rootCmd.PersistentFlags().StringVar(&walletPassword, "wallet-password", "", "bitcoind HDWallet password")
+	rootCmd.PersistentFlags().StringVar(&addressType, "address-type", "bech32", "bitcoin address type bech32 or p2kh or p2sh")
 	rootCmd.PersistentFlags().StringVar(&mnemonic, "mnemonic", "", "HDWallet mnemonic")
-	rootCmd.PersistentFlags().StringVar(&zmqAddress, "zmq-address", "tcp://localhost:28332", "zero mq address (default is tcp://localhost:28332)")
-	rootCmd.PersistentFlags().IntVar(&bitSize, "bit-size", 128, "bit-size must be [128, 256] and a multiple of 32 (default is 128)")
-	rootCmd.PersistentFlags().Uint32Var(&addressCount, "address-count", 10, "generate and import bitcoin address count (default is 10)")
-	rootCmd.PersistentFlags().BoolVar(&verbose, "verbose", true, "Print bitcoind block and tx verbose (default is true)")
+	rootCmd.PersistentFlags().StringVar(&zmqAddress, "zmq-address", "tcp://localhost:28332", "zero mq address")
+	rootCmd.PersistentFlags().IntVar(&bitSize, "bit-size", 128, "bit-size must be [128, 256] and a multiple of 32")
+	rootCmd.PersistentFlags().IntVar(&second, "second", 30, "generate block automatically by second")
+	rootCmd.PersistentFlags().Uint32Var(&addressCount, "address-count", 10, "generate and import bitcoin address count")
+	rootCmd.PersistentFlags().BoolVar(&verbose, "verbose", true, "Print bitcoind block and tx verbose")
 
 	viper.BindPFlag("host", rootCmd.PersistentFlags().Lookup("host"))
 	viper.BindPFlag("port", rootCmd.PersistentFlags().Lookup("port"))
@@ -154,6 +175,7 @@ func init() {
 	viper.BindPFlag("mnemonic", rootCmd.PersistentFlags().Lookup("mnemonic"))
 	viper.BindPFlag("zmq-address", rootCmd.PersistentFlags().Lookup("zmq-address"))
 	viper.BindPFlag("bit-size", rootCmd.PersistentFlags().Lookup("bit-size"))
+	viper.BindPFlag("second", rootCmd.PersistentFlags().Lookup("second"))
 	viper.BindPFlag("address-count", rootCmd.PersistentFlags().Lookup("address-count"))
 	viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose"))
 }
