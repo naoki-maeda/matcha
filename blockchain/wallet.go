@@ -22,14 +22,14 @@ const (
 // HDWallet is BIP44 HD Wallet format. Apostrophe is a hardend key to enhance security
 // m / purpose' / coin_type' / account' / change / address_index
 type HDWallet struct {
-	Mnemonic      string
-	ExtendedKey   *hdkeychain.ExtendedKey
+	Mnemonic    string
+	ExtendedKey *hdkeychain.ExtendedKey
 	ChainParams *chaincfg.Params
 }
 
 // Account is HDWallet account
 type Account struct {
-	ExtendedKey   *hdkeychain.ExtendedKey
+	ExtendedKey *hdkeychain.ExtendedKey
 	ChainParams *chaincfg.Params
 }
 
@@ -113,8 +113,8 @@ func NewHDWallet(bitSize int, mnemonic string, network string, password string) 
 	}
 
 	return &HDWallet{
-		Mnemonic:      mnemonic,
-		ExtendedKey:   extendedKey,
+		Mnemonic:    mnemonic,
+		ExtendedKey: extendedKey,
 		ChainParams: networkParams,
 	}, nil
 }
@@ -154,7 +154,7 @@ func (hd *HDWallet) NewAccount(purpose, coinType, account uint32) (*Account, err
 		return nil, err
 	}
 	return &Account{
-		ExtendedKey:   accountChild,
+		ExtendedKey: accountChild,
 		ChainParams: hd.ChainParams,
 	}, nil
 }
@@ -198,7 +198,7 @@ func (a *Account) DeriveAddress(change, addressIndex uint32, addressType string)
 	}, nil
 }
 
-// encodeAddress returns address by addressType
+// encodeAddress return address by addressType
 func encodeAddress(ecPubkey btcec.PublicKey, addressType string, networkParams chaincfg.Params) (address string, err error) {
 	switch addressType {
 	case AddressBech32:

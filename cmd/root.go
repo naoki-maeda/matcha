@@ -24,6 +24,7 @@ var (
 	zmqAddress     string
 	bitSize        int
 	addressCount   uint32
+	verbose        bool
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -47,6 +48,7 @@ func run(cmd *cobra.Command, args []string) error {
 	zmqAddress = viper.GetString("zmq-address")
 	bitSize = viper.GetInt("bit-size")
 	addressCount = viper.GetUint32("address-count")
+	verbose = viper.GetBool("verbose")
 
 	rpc, err := blockchain.NewRPC(host, port, user, password, true)
 	if err != nil {
@@ -67,7 +69,7 @@ func run(cmd *cobra.Command, args []string) error {
 	}
 	fmt.Println(`Available Accounts
 ==================`)
-	var privKeys []string
+	privKeys := make([]string, addressCount, addressCount)
 	for i := uint32(0); i < addressCount; i++ {
 		childWallet, err := account.DeriveAddress(blockchain.ChangeTypeExternal, i, addressType)
 		if err != nil {
@@ -97,14 +99,17 @@ Mnemonic:      %s
 Base HD Path:  m/44'/60'/0'/0/{account_index}
 `, hdwallet.Mnemonic)
 
-	// zmq, err := blockchain.NewZmqClient(zmqAddress)
-	// if err != nil {
-	// 	return err
-	// }
-	// if err := zmq.Sync(); err != nil {
-	// 	fmt.Println(err)
-	// 	return err
-	// }
+	// start syncing zmq
+	if zmqAddress != "" {
+		zmq, err := blockchain.NewZmqClient(zmqAddress, true)
+		if err != nil {
+			return err
+		}
+		if err := zmq.Sync(rpc.Client); err != nil {
+			fmt.Println(err)
+			return err
+		}
+	}
 	return nil
 }
 
@@ -137,6 +142,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&zmqAddress, "zmq-address", "tcp://localhost:28332", "zero mq address (default is tcp://localhost:28332)")
 	rootCmd.PersistentFlags().IntVar(&bitSize, "bit-size", 128, "bit-size must be [128, 256] and a multiple of 32 (default is 128)")
 	rootCmd.PersistentFlags().Uint32Var(&addressCount, "address-count", 10, "generate and import bitcoin address count (default is 10)")
+	rootCmd.PersistentFlags().BoolVar(&verbose, "verbose", true, "Print bitcoind block and tx verbose (default is true)")
 
 	viper.BindPFlag("host", rootCmd.PersistentFlags().Lookup("host"))
 	viper.BindPFlag("port", rootCmd.PersistentFlags().Lookup("port"))
@@ -149,6 +155,7 @@ func init() {
 	viper.BindPFlag("zmq-address", rootCmd.PersistentFlags().Lookup("zmq-address"))
 	viper.BindPFlag("bit-size", rootCmd.PersistentFlags().Lookup("bit-size"))
 	viper.BindPFlag("address-count", rootCmd.PersistentFlags().Lookup("address-count"))
+	viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose"))
 }
 
 // initConfig reads in config file if set.
