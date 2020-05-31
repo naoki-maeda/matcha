@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"os"
@@ -106,32 +107,70 @@ Mnemonic:      %s
 Base HD Path:  m/44'/60'/0'/0/{account_index}
 `, hdwallet.Mnemonic)
 
-	// generate block automatically by second
-	go func() {
+	if zmqAddress == "" {
+		return nil
+	}
+	zmq, err := blockchain.NewZmqClient(zmqAddress, true)
+	if err != nil {
+		return err
+	}
+	msg := make(chan blockchain.Message)
+	go zmq.Sync(rpc.Client, msg)
+	for {
 		t := time.NewTicker(time.Duration(second) * time.Second)
 		defer t.Stop()
-		for {
-			select {
-			case <-t.C:
-				// generate to random address
-				rpc.Client.GenerateToAddress(1, addresses[rand.Intn(int(addressCount))], &blockchain.MaxTries)
+		select {
+		case <-t.C:
+			// generate to random address
+			rpc.Client.GenerateToAddress(1, addresses[rand.Intn(int(addressCount))], &blockchain.MaxTries)
+		case message := <-msg:
+			// maybe msg frames are fixed 3 length
+			if message.Msg.Frames == nil || len(message.Msg.Frames) != 3 {
+				break
+			}
+			topic := fmt.Sprintf("%s", message.Msg.Frames[0])
+			switch topic {
+			case blockchain.RawBlock:
+				block, err := btcutil.NewBlockFromBytes(message.Msg.Frames[1])
+				if err != nil {
+					fmt.Println(err)
+					return err
+				}
+				fmt.Println("==================")
+				fmt.Printf("block hash: %s\n", block.Hash())
+				if verbose == true {
+					blockVerbose, err := rpc.Client.GetBlockVerbose(block.Hash())
+					if err != nil {
+						return err
+					}
+					j, err := json.Marshal(blockVerbose)
+					if err != nil {
+						return err
+					}
+					fmt.Println(string(j))
+				}
+			case blockchain.RawTx:
+				tx, err := btcutil.NewTxFromBytes(message.Msg.Frames[1])
+				if err != nil {
+					return err
+				}
+				fmt.Println("==================")
+				fmt.Printf("tx hash: %s\n", tx.Hash())
+				if verbose == true {
+					txVerbose, err := rpc.Client.GetRawTransactionVerbose(tx.Hash())
+					if err != nil {
+						return err
+					}
+					j, err := json.Marshal(txVerbose)
+					if err != nil {
+						return err
+					}
+					fmt.Println(string(j))
+				}
 			}
 		}
-	}()
-	// start syncing zmq
-	if zmqAddress != "" {
-		zmq, err := blockchain.NewZmqClient(zmqAddress, true)
-		if err != nil {
-			return err
-		}
-		if err := zmq.Sync(rpc.Client); err != nil {
-			return err
-		}
 	}
-	return nil
 }
-
-func sync()
 
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
@@ -161,7 +200,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&mnemonic, "mnemonic", "", "HDWallet mnemonic")
 	rootCmd.PersistentFlags().StringVar(&zmqAddress, "zmq-address", "tcp://localhost:28332", "zero mq address")
 	rootCmd.PersistentFlags().IntVar(&bitSize, "bit-size", 128, "bit-size must be [128, 256] and a multiple of 32")
-	rootCmd.PersistentFlags().IntVar(&second, "second", 30, "generate block automatically by second")
+	rootCmd.PersistentFlags().IntVar(&second, "second", 1, "generate block automatically by second")
 	rootCmd.PersistentFlags().Uint32Var(&addressCount, "address-count", 10, "generate and import bitcoin address count")
 	rootCmd.PersistentFlags().BoolVar(&verbose, "verbose", true, "Print bitcoind block and tx verbose")
 
