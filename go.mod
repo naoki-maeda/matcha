@@ -3,7 +3,7 @@ module github.com/naoki-maeda/matcha
 go 1.14
 
 require (
-	github.com/btcsuite/btcd v0.20.1-beta
+	github.com/btcsuite/btcd v0.20.1-beta.0.20200515232429-9f0179fd2c46
 	github.com/btcsuite/btcutil v1.0.2
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/go-zeromq/zmq4 v0.9.0
