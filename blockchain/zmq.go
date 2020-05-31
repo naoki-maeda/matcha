@@ -3,7 +3,6 @@ package blockchain
 import (
 	"context"
 
-	"github.com/btcsuite/btcd/rpcclient"
 	zmq "github.com/go-zeromq/zmq4"
 )
 

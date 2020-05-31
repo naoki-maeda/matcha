@@ -67,6 +67,9 @@ func run(cmd *cobra.Command, args []string) error {
 	}
 	// write config file
 	viper.Set("mnemonic", hdwallet.Mnemonic)
+	if err := writeConfig(cfgFile); err != nil {
+		return err
+	}
 
 	coinType := blockchain.GetCoinType(network)
 	account, err := hdwallet.NewAccount(blockchain.Purpose, blockchain.CoinTypeBitcoinTestnet, coinType)
@@ -175,13 +178,13 @@ Base HD Path:  m/44'/60'/0'/0/{account_index}
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
+	rootCmd.SetOutput(os.Stdout)
+	rootCmd.SilenceErrors = true
+	rootCmd.SilenceUsage = true
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-	// write config file
-	if err := viper.WriteConfig(); err != nil {
-		fmt.Println(err)
+		// If exist error, output stderr
+		rootCmd.SetOutput(os.Stderr)
+		rootCmd.Println(err)
 		os.Exit(1)
 	}
 }
@@ -232,7 +235,6 @@ func initConfig() {
 			fmt.Println(err)
 			os.Exit(1)
 		}
-
 		// Search config in home directory with name ".matcha" (without extension).
 		viper.AddConfigPath(home)
 		viper.SetConfigName(".matcha")
@@ -243,4 +245,22 @@ func initConfig() {
 	if err := viper.ReadInConfig(); err == nil {
 		fmt.Println("Using config file:", viper.ConfigFileUsed())
 	}
+}
+
+func writeConfig(configFile string) error {
+	if configFile != "" {
+		err := viper.WriteConfigAs(configFile)
+		return err
+	}
+	err := viper.WriteConfig()
+	if err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+			home, err := homedir.Dir()
+			if err != nil {
+				return err
+			}
+			return viper.WriteConfigAs(home + "/.matcha.yaml")
+		}
+	}
+	return err
 }
