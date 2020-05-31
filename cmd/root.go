@@ -203,7 +203,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&mnemonic, "mnemonic", "", "HDWallet mnemonic")
 	rootCmd.PersistentFlags().StringVar(&zmqAddress, "zmq-address", "tcp://localhost:28332", "zero mq address")
 	rootCmd.PersistentFlags().IntVar(&bitSize, "bit-size", 128, "bit-size must be [128, 256] and a multiple of 32")
-	rootCmd.PersistentFlags().IntVar(&second, "second", 1, "generate block automatically by second")
+	rootCmd.PersistentFlags().IntVar(&second, "second", 30, "generate block automatically by second")
 	rootCmd.PersistentFlags().Uint32Var(&addressCount, "address-count", 10, "generate and import bitcoin address count")
 	rootCmd.PersistentFlags().BoolVar(&verbose, "verbose", true, "Print bitcoind block and tx verbose")
 
