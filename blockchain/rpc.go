@@ -4,6 +4,9 @@ import (
 	"github.com/btcsuite/btcd/rpcclient"
 )
 
+// MaxTries is RPC max tries count
+var MaxTries int64 = 10
+
 // RPC client & settings
 type RPC struct {
 	Client *rpcclient.Client

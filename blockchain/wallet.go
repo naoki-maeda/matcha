@@ -2,7 +2,6 @@ package blockchain
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcd/chaincfg"
@@ -25,20 +24,20 @@ const (
 type HDWallet struct {
 	Mnemonic      string
 	ExtendedKey   *hdkeychain.ExtendedKey
-	NetworkParams *chaincfg.Params
+	ChainParams *chaincfg.Params
 }
 
 // Account is HDWallet account
 type Account struct {
 	ExtendedKey   *hdkeychain.ExtendedKey
-	NetworkParams *chaincfg.Params
+	ChainParams *chaincfg.Params
 }
 
 // ChildWallet is created from HDWallet by index
 type ChildWallet struct {
-	PrivKey string
-	PubKey  string
-	Address string
+	Address   btcutil.Address
+	WIF       *btcutil.WIF
+	PublicKey btcec.PublicKey
 }
 
 // Purpose is BIP44 purpose
@@ -116,7 +115,7 @@ func NewHDWallet(bitSize int, mnemonic string, network string, password string) 
 	return &HDWallet{
 		Mnemonic:      mnemonic,
 		ExtendedKey:   extendedKey,
-		NetworkParams: networkParams,
+		ChainParams: networkParams,
 	}, nil
 }
 
@@ -156,7 +155,7 @@ func (hd *HDWallet) NewAccount(purpose, coinType, account uint32) (*Account, err
 	}
 	return &Account{
 		ExtendedKey:   accountChild,
-		NetworkParams: hd.NetworkParams,
+		ChainParams: hd.ChainParams,
 	}, nil
 }
 
@@ -177,53 +176,58 @@ func (a *Account) DeriveAddress(change, addressIndex uint32, addressType string)
 		return nil, err
 	}
 
-	privkey := fmt.Sprintf("%x", ecPrivKey.Serialize())
-
+	// compressed set true
+	wif, err := btcutil.NewWIF(ecPrivKey, a.ChainParams, true)
+	if err != nil {
+		return nil, err
+	}
 	ecPubkey, err := childWallet.ECPubKey()
 	if err != nil {
 		return nil, err
 	}
-	pubkey, address, err := encodeAddress(*ecPubkey, addressType, *a.NetworkParams)
+	address, err := encodeAddress(*ecPubkey, addressType, *a.ChainParams)
+
+	decodedAddress, err := btcutil.DecodeAddress(address, a.ChainParams)
+	if err != nil {
+		return nil, err
+	}
 	return &ChildWallet{
-		PrivKey: privkey,
-		PubKey:  pubkey,
-		Address: address,
+		Address:   decodedAddress,
+		WIF:       wif,
+		PublicKey: *ecPubkey,
 	}, nil
 }
 
-// encodeAddress returns address and pubkey
-func encodeAddress(ecPubkey btcec.PublicKey, addressType string, networkParams chaincfg.Params) (pubkey, address string, err error) {
+// encodeAddress returns address by addressType
+func encodeAddress(ecPubkey btcec.PublicKey, addressType string, networkParams chaincfg.Params) (address string, err error) {
 	switch addressType {
 	case AddressBech32:
 		witnessHash := btcutil.Hash160(ecPubkey.SerializeCompressed())
 		witnessPubKeyHash, err := btcutil.NewAddressWitnessPubKeyHash(witnessHash, &networkParams)
 		if err != nil {
-			return pubkey, address, err
+			return address, err
 		}
-		pubkey = witnessPubKeyHash.String()
 		address = witnessPubKeyHash.EncodeAddress()
-		return pubkey, address, err
+		return address, nil
 	case AddressP2KH:
 		addressPubkey, err := btcutil.NewAddressPubKey(ecPubkey.SerializeCompressed(), &networkParams)
 		if err != nil {
-			return pubkey, address, err
+			return address, err
 		}
-		pubkey = addressPubkey.String()
 		address = addressPubkey.EncodeAddress()
-		return pubkey, address, err
+		return address, err
 	case AddressP2SH:
 		keyHash := btcutil.Hash160(ecPubkey.SerializeCompressed())
 		scriptSig, err := txscript.NewScriptBuilder().AddOp(txscript.OP_0).AddData(keyHash).Script()
 		if err != nil {
-			return pubkey, address, err
+			return address, err
 		}
 		addressScript, err := btcutil.NewAddressScriptHash(scriptSig, &networkParams)
 		if err != nil {
-			return pubkey, address, err
+			return address, err
 		}
-		pubkey = addressScript.String()
 		address = addressScript.EncodeAddress()
-		return pubkey, address, err
+		return address, err
 	}
-	return pubkey, address, errors.New("invalid address type")
+	return address, errors.New("invalid address type")
 }

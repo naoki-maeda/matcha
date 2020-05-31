@@ -6,10 +6,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	bitSize int
-)
-
 // walletCmd represents the wallet command
 var walletCmd = &cobra.Command{
 	Use:   "wallet",
