@@ -115,7 +115,7 @@ Base HD Path:  m/44'/60'/0'/0/{account_index}
 		return err
 	}
 	msg := make(chan blockchain.Message)
-	go zmq.Sync(rpc.Client, msg)
+	go zmq.Receive(msg)
 	for {
 		t := time.NewTicker(time.Duration(second) * time.Second)
 		defer t.Stop()

@@ -52,8 +52,8 @@ func (zmq *ZMQ) Close() {
 	zmq.client.Close()
 }
 
-// Sync zmq Syncing
-func (zmq *ZMQ) Sync(rpc *rpcclient.Client, message chan Message) error {
+// Receive zmq message
+func (zmq *ZMQ) Receive(message chan Message) error {
 	defer zmq.Close()
 	for {
 		msg, err := zmq.client.Recv()
