@@ -32,6 +32,12 @@ var (
 	verbose        bool
 )
 
+// These variables are set in build step
+var (
+	Version  = "unset"
+	Revision = "unset"
+)
+
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "matcha",
@@ -76,6 +82,7 @@ func run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	fmt.Printf("matcha Version: %s (%s)\n", Version, Revision)
 	fmt.Println(`Available Accounts
 ==================`)
 	addresses := make([]btcutil.Address, addressCount, addressCount)
