@@ -9,8 +9,8 @@ builds:
     binary: matcha
     ldflags:
       - -s -w
-      - -X main.Version={{.Version}}
-      - -X main.Revision={{.ShortCommit}}
+      - -X github.com/naoki-maeda/matcha/cmd.Version={{.Version}}
+      - -X github.com/naoki-maeda/matcha/cmd.Revision={{.ShortCommit}}
     env:
       - CGO_ENABLED=0
 archives:
