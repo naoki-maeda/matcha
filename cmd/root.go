@@ -72,7 +72,7 @@ func run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	// write config file
-	viper.Set("mnemonic", hdwallet.Mnemonic)
+	// viper.Set("mnemonic", hdwallet.Mnemonic)
 	if err := writeConfig(cfgFile); err != nil {
 		return err
 	}
